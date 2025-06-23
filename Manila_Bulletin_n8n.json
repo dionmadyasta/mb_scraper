@@ -1,0 +1,748 @@
+{
+  "name": "Manila Bulletin",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        40
+      ],
+      "id": "e0de3547-54ba-493b-97ad-775819771d67",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        340,
+        60
+      ],
+      "id": "e4ac5891-8ebe-4035-a580-6b565c14da5b",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "id": "21930f86-b3d7-43b7-970f-20fbff0e7709",
+      "name": "Extract from google docs",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [
+        880,
+        80
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "*",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "value": "https://drive.google.com/drive/u/4/folders/1wDk6iCNFrPfkQYQAtuL_9zrfTPF8aAgV",
+            "mode": "url"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        100,
+        40
+      ],
+      "id": "d7b13b13-cb69-4961-b804-df33443a3de8",
+      "name": "Google Drive Search",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "v3glBuYeBelZCoqM",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const rawContent = item.json.data.content;\n\n  const cleanContent = rawContent\n    .replace(/<[^>]*>/g, \"\")                     // hapus tag HTML\n    .replace(/font-family:[^;]+;?/gi, \"\")        // hapus sisa font\n    .replace(/display:\\s?inline\\s?!important;?/gi, \"\") // hapus CSS jelek\n    .replace(/>>[^>]+>/g, \"\");                   // sisa error parser HTML\n\n  return {\n    json: {\n      ...item.json.data,\n      content: cleanContent\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        80
+      ],
+      "id": "215cf957-95bb-44a9-ba12-9c221b48c8db",
+      "name": "Data cleaning"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = [];\nconst seen = new Set();\n\nfor (const item of items) {\n  const article = item.json.article;\n  const articleId = item.json.article_id;\n\n  if (!articleId || !article || !Array.isArray(article.companies)) {\n    continue;\n  }\n\n  if (seen.has(articleId)) continue; // skip duplicate\n  seen.add(articleId);\n\n  for (const company of article.companies) {\n    result.push({\n      json: {\n        article_id: articleId,\n        name: company.name || '',\n        sentiment: company.sentiment || ''\n      }\n    });\n  }\n}\n\nreturn result;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        160
+      ],
+      "id": "5f9d6603-4b39-422a-97eb-5187a0276421",
+      "name": "Split Companies"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2980,
+        40
+      ],
+      "id": "1e227eed-5620-448b-8bae-a46570c8e42a",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8a5c56c1-cbe2-4885-911a-62c43d3a3b6f",
+              "name": "article_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2760,
+        -40
+      ],
+      "id": "6e2849aa-1231-47e0-81c6-5d5ede7174eb",
+      "name": "Set article_id"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8a5c56c1-cbe2-4885-911a-62c43d3a3b6f",
+              "name": "company_id",
+              "value": "={{ $json.id }}",
+              "type": "number"
+            },
+            {
+              "id": "b333d3f8-6556-4441-9570-49872722e009",
+              "name": "sentiment",
+              "value": "={{ $('Split Companies').item.json.sentiment }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2760,
+        160
+      ],
+      "id": "cf65e121-02ff-42e3-94bb-4a7ec9c936c4",
+      "name": "Set company_id"
+    },
+    {
+      "parameters": {
+        "jsCode": "const article = items[0].json;\n\n// Jika tidak ada companies, tetap return satu item dummy\nif (!article.companies || article.companies.length === 0) {\n  return [{\n    json: {\n      article_id: article.id,\n      article: article,\n      name: null,\n      sentiment: null\n    }\n  }];\n}\n\nreturn article.companies.map(c => ({\n  json: {\n    article_id: article.id,\n    article: article,\n    name: c.name,\n    sentiment: c.sentiment\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        80
+      ],
+      "id": "f4e54a08-af49-4c7f-a0ab-25e31addf903",
+      "name": "Split Manual"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ambil text dari input\nconst rawText = items[0].json.text;\n\n// Ambil isi JSON di dalam blok ```json ... ```\nconst match = rawText.match(/```json\\n([\\s\\S]*?)\\n```/);\n\nif (!match) {\n  throw new Error(\"JSON block not found in text\");\n}\n\nconst jsonString = match[1];\n\n// Parse ke objek JSON asli\nconst article = JSON.parse(jsonString);\n\n// Output hasil akhir\nreturn [\n  {\n    json: article\n  }\n];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1660,
+        80
+      ],
+      "id": "e498fd20-c09e-470e-9bc2-9198c2ba4ecc",
+      "name": "Json Formater"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ixbmggfxkarbnkbndbaj.supabase.co/rest/v1/articles",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates, return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{$json[\"article\"][\"id\"]}}"
+            },
+            {
+              "name": "title",
+              "value": "={{$json[\"article\"][\"title\"]}}"
+            },
+            {
+              "name": "content",
+              "value": "={{$json[\"article\"][\"content\"]}}"
+            },
+            {
+              "name": "summary",
+              "value": "={{$json[\"article\"][\"summary\"]}}"
+            },
+            {
+              "name": "images",
+              "value": "=\t{{$json[\"article\"][\"images\"]}}"
+            },
+            {
+              "name": "source_url",
+              "value": "={{$json[\"article\"][\"source_url\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        -40
+      ],
+      "id": "24158083-3915-476a-b5a5-4267932facd3",
+      "name": "Insert Articles",
+      "credentials": {
+        "supabaseApi": {
+          "id": "y1WG4sDJ3a8n1vI1",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ixbmggfxkarbnkbndbaj.supabase.co/rest/v1/article_companies",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates, return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "article_id",
+              "value": "={{ $json.article_id }}"
+            },
+            {
+              "name": "company_id",
+              "value": "={{ $json.company_id }}"
+            },
+            {
+              "name": "sentiment",
+              "value": "={{ $json.sentiment }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3460,
+        -40
+      ],
+      "id": "7036d6bc-87db-4f88-b8d7-553fc6762347",
+      "name": "Insert article_companies",
+      "credentials": {
+        "supabaseApi": {
+          "id": "y1WG4sDJ3a8n1vI1",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ixbmggfxkarbnkbndbaj.supabase.co/rest/v1/companies",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{ $json.name }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2560,
+        160
+      ],
+      "id": "e7f08a21-7e33-4ab9-a5cf-b057fd89bd00",
+      "name": "Insert Companies",
+      "credentials": {
+        "supabaseApi": {
+          "id": "y1WG4sDJ3a8n1vI1",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        320
+      ],
+      "id": "3c9da961-b3b4-4bb0-97fb-49d41b805148",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OztgftN9SqZDWfo4",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        640,
+        80
+      ],
+      "id": "5d2cf7d3-0eea-4004-8e22-9900e417c139",
+      "name": "Google Drive Download",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "v3glBuYeBelZCoqM",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3640,
+        300
+      ],
+      "id": "78362a9f-6057-4bdd-8ced-8c1c8e919137",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Here is a business news article:\nYou must strictly follow JSON formatting rules\n\ntitle:\n{{ $json.title }}\n\ncontent:\n{{ $json.content }}\n\nimages:\n{{ $json.images }}\n\nsource_url:\n{{ $json.source_url }}\n\nPlease generate an ACTUAL JSON output that contains:\n\nid: a unique slug based on the title (lowercase, no special characters, words separated by -)\n\ntitle: copied from the title above\n\ncontent: the full article content from the content above\n\nimages: a list of local image paths in string format, e.g., [\"Images/slug_1.png\"]\n\nsummary: a concise summary consisting of exactly 4–5 lines. No more, no less. Use effective sentences derived strictly from the content. \n⚠️ Output the entire summary as a **single string value**, not a list or multiple string properties.\n\nsource_url: copied from the source_url above\n\ncompanies: a list of company objects mentioned in the article. Each object must include:\n\nname: the company name\n\nsentiment: the sentiment context toward the company in this article (\"positive\", \"neutral\", or \"negative\")\n\n⚠️ Ensure the JSON output is syntactically valid, strictly using double quotes for all strings and keys.\n\n{\n  \"id\": \"...\",\n  \"title\": \"...\",\n  \"content\": \"...\",\n  \"images\": [\"...\"],\n  \"summary\": \"...\",\n  \"source_url\": \"...\",\n  \"companies\": [\n    { \"name\": \"...\", \"sentiment\": \"positive\" },\n    { \"name\": \"...\", \"sentiment\": \"neutral\" }\n  ]\n}\n"
+      },
+      "id": "22ee320a-ffc6-41d8-aece-932ac340e0b3",
+      "name": "Auto-Generated Summary",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        1320,
+        80
+      ],
+      "typeVersion": 1.6
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fe594144-a26c-4d0d-96e4-845ab2f81cb3",
+              "leftValue": "={{ $json.company_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3220,
+        40
+      ],
+      "id": "949b8c3d-3ff2-4095-a86b-f56a9ae9ed0a",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8b016939-6537-465c-a9d7-ad616906f7fc",
+              "leftValue": "={{ $json.name }}",
+              "rightValue": "=",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2060,
+        240
+      ],
+      "id": "035284d1-3931-4e3f-bbad-4d190ae8cc0f",
+      "name": "If1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Google Drive Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Google Drive Download",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from google docs": {
+      "main": [
+        [
+          {
+            "node": "Data cleaning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Search": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data cleaning": {
+      "main": [
+        [
+          {
+            "node": "Auto-Generated Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Companies": {
+      "main": [
+        [
+          {
+            "node": "Insert Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set article_id": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set company_id": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Manual": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insert Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Json Formater": {
+      "main": [
+        [
+          {
+            "node": "Split Manual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Articles": {
+      "main": [
+        [
+          {
+            "node": "Set article_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert article_companies": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Companies": {
+      "main": [
+        [
+          {
+            "node": "Set company_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Auto-Generated Summary",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Download": {
+      "main": [
+        [
+          {
+            "node": "Extract from google docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation, do nothing": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Generated Summary": {
+      "main": [
+        [
+          {
+            "node": "Json Formater",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Insert article_companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Split Companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e7d4e575-e099-455d-9172-56438065e9f6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5293ff37c6fedfab1b3cf474c3bf6542c0ac9ec6f86e06252f497284f0b67cbe"
+  },
+  "id": "FnYqtyUEMiQqgH5i",
+  "tags": []
+}
