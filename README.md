@@ -86,9 +86,9 @@ python mbscraper.py
 
 Detailed instructions are included inside the `Manila_Bulletin_N8N.json` file after importing it into n8n.
 
-- 🔹 **Google Drive Folder Path** – Where the scraped JSON files are stored  
-- 🔹 **Gemini 1.5 Flash Credentials** – Required for AI-based enrichment  
-- 🔹 **Supabase Credentials** – Used for inserting structured data into the database from n8n  
+- **Google Drive Folder Path** – Where the scraped JSON files are stored  
+- **Gemini 1.5 Flash Credentials** – Required for AI-based enrichment  
+- **Supabase Credentials** – Used for inserting structured data into the database from n8n  
 
 #### Execution
 Once configured, trigger the workflow and let it automatically:
