@@ -82,7 +82,7 @@ python mbscraper.py
 
 #### Configuration Setup
 
-3. Set up the following environment-specific configurations:
+Set up the following environment-specific configurations:
 
 Detailed instructions are included inside the `Manila_Bulletin_N8N.json` file after importing it into n8n.
 
