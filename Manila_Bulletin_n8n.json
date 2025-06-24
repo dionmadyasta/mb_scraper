@@ -360,8 +360,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        1160,
-        320
+        1440,
+        280
       ],
       "id": "3c9da961-b3b4-4bb0-97fb-49d41b805148",
       "name": "Google Gemini Chat Model",
@@ -402,8 +402,8 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        3640,
-        300
+        3820,
+        340
       ],
       "id": "78362a9f-6057-4bdd-8ced-8c1c8e919137",
       "name": "No Operation, do nothing"
@@ -489,6 +489,70 @@
       ],
       "id": "035284d1-3931-4e3f-bbad-4d190ae8cc0f",
       "name": "If1"
+    },
+    {
+      "parameters": {
+        "content": "# Manila Bulletin News Processing Workflow\n\nThis n8n workflow automates the processing of news articles from Google Drive, enriches them with AI-generated summaries and company sentiment analysis, then stores the data in Supabase database.\n\n## Initial Setup Requirements\n\n### 1. Google Drive Configuration\n- **Node: Google Drive Search**\n- Replace the folder URL in the `folderId` parameter with your Google Drive folder containing JSON news files\n- Update the Google Drive OAuth2 credentials to connect to your account\n\n### 2. AI Model Configuration  \n- **Node: Google Gemini Chat Model**\n- Configure your Google Gemini API credentials\n- **Important**: Keep the model as `gemini-1.5-flash` - the prompt is specifically optimized for this model. Using other models may cause JSON output formatting issues\n\n### 3. Database Configuration\n- **Nodes: Insert Articles, Insert Companies, Insert article_companies**\n- Replace Supabase credentials with your own database connection\n- Ensure you've created the required database schema using the `table_schema.sql` file from the GitHub repository\n\n",
+        "height": 560,
+        "width": 1440,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -340,
+        -740
+      ],
+      "id": "d7629c83-7f4c-424f-aa4d-df76dfc85742",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Workflow Process Overview\n\n### Process 1: File Download from Google Drive\nThe workflow starts by scanning a specified Google Drive folder for JSON files containing news article data. Each file is downloaded and extracted, with the content cleaned to remove HTML tags and formatting artifacts. Files are processed in batches to handle multiple articles efficiently.",
+        "height": 740,
+        "width": 1600,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -340,
+        -160
+      ],
+      "id": "558e321a-ac4d-4aff-8e07-37cd3e24a282",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "### Process 2: AI Data Enrichment  \nRaw article content is processed through Google Gemini AI to generate structured JSON output including article summaries, company mentions, and sentiment analysis. The AI creates unique slugs, concise 4-5 line summaries, and identifies companies with their associated sentiment (positive, neutral, or negative).",
+        "height": 740,
+        "width": 340,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        -160
+      ],
+      "id": "783f2492-cf1e-443a-93d7-779501d6b3cc",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "### Process 3: Database Storage\nThe enriched data is stored across three Supabase tables: articles (main content), companies (unique company records), and article_companies (relationship mapping with sentiment). The workflow handles duplicate prevention and maintains referential integrity between tables.\n\nThe entire process runs automatically once triggered, processing multiple articles sequentially while maintaining data consistency and avoiding duplicates.",
+        "height": 740,
+        "width": 2400,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1640,
+        -160
+      ],
+      "id": "2ae18409-d8c8-4bde-9f7c-4d59be984a1c",
+      "name": "Sticky Note3"
     }
   ],
   "pinData": {},
@@ -738,7 +802,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "e7d4e575-e099-455d-9172-56438065e9f6",
+  "versionId": "7b39baef-e0b4-4bcb-8559-5999093d630c",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "5293ff37c6fedfab1b3cf474c3bf6542c0ac9ec6f86e06252f497284f0b67cbe"

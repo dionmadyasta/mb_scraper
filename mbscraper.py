@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 # Configuration
 max_articles = 500
 base_url = "https://mb.com.ph/category/business?page="
-output_dir = r"D:\python\kudalari\labalabajantan\labalabajantan\tools\SeleniumBase"
+output_dir = r"D:\mb"
 articles_dir = os.path.join(output_dir, "Articles")
 images_dir = os.path.join(output_dir, "Images")
 os.makedirs(articles_dir, exist_ok=True)
